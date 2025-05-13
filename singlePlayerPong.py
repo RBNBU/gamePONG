@@ -1,6 +1,7 @@
 import pygame
 import random
 import math
+from time import sleep
 
 BLACK = (0,0,0)
 WHITE = (255,255,255)
@@ -14,6 +15,7 @@ size = (1000,650)
 width = 1000
 height = 650
 screen = pygame.display.set_mode(size)
+currentGame = 0
 
 pygame.display.set_caption("Singleplayer Pong")
 
@@ -35,6 +37,8 @@ ball_centre_x = random.randint(borderV_w + margin, borderO_x + margin - borderV_
 ball_radius = 20
 ball_direction = 'UP_LEFT'
 ball_speed = [-10,random.randint(-7,7)]
+while ball_speed[1] == 0:
+        ball_speed[1] = random.randint(-7, 7)
 ball_obj = pygame.draw.circle(screen,"GREEN", (ball_centre_x, ball_centre_y), ball_radius)
 
 pygame.display.flip()
@@ -44,6 +48,23 @@ dt = 0
 
 running = True
 clock = pygame.time.Clock()
+
+def resetball():
+    global paddle_y, ball_centre_x, ball_centre_y, ball_speed, ball_obj
+
+    paddle_y = (height / 2) - (paddle_h / 2)
+
+    ball_centre_y = random.randint(borderH_h + margin, height + margin - borderH_h - margin)
+
+    ball_centre_x = random.randint(borderV_w + margin, borderO_x + margin - borderV_w - margin)
+
+    ball_speed[0] = -10 
+    ball_speed[1] = random.randint(-7, 7)
+    while ball_speed[1] == 0:
+        ball_speed[1] = random.randint(-7, 7)
+    ball_obj.center = (ball_centre_x, ball_centre_y)
+    
+    return
 
 
 while running:
@@ -77,10 +98,10 @@ while running:
 
 
     keys = pygame.key.get_pressed()
-    if keys[pygame.K_UP] and paddle_y>0:
+    if keys[pygame.K_UP] and paddle_y>margin:
        paddle_y -= 5
 
-    if keys[pygame.K_DOWN] and paddle_y<height-paddle_h:
+    if keys[pygame.K_DOWN] and paddle_y<height-paddle_h - margin:
         paddle_y += 5
 
     pygame.draw.rect(screen, "RED", (paddle_x, paddle_y, paddle_w, paddle_h)) 
@@ -93,12 +114,25 @@ while running:
         ball_speed[1] = ball_speed[0] * math.sin(math.radians(bounce_angle))
 
     if ball_obj.right >= borderO_x:
-        running = False
+        #running = False
         font = pygame.font.Font(None, 74)
         text = font.render("GAME OVER", 1, RED)
         textpos = text.get_rect(centerx=screen.get_width()/2, centery=screen.get_height()/2)
         screen.blit(text, textpos)
-
+        currentGame = currentGame + 1
+        pygame.display.flip()
+        waiting = True
+        while waiting:
+            event = pygame.event.wait()
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            if event.type == pygame.KEYDOWN or event.type == pygame.KEYUP:
+                waiting = False
+        if currentGame == 10:
+            running = False
+            currentGame = 0
+            resetball()
 
     pygame.display.flip()
 
