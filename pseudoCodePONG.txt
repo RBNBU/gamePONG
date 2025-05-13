@@ -1,0 +1,73 @@
+importeer pygame
+initializeer pygame
+
+stel nodige variabelen in:
+    hoogte scherm = 350
+    breedte scherm = 350
+
+    hoogte speelveld = 200
+    breedte speelveld = 200
+
+    bal radius = 20
+    pallet width = 10
+
+    halve pallet width = pallet width / 2
+    halve pallet breedte = pallet breedte / 2
+
+    beginplaats bal = random
+    beginplaats speler
+    huidige score = 0
+    pallet snelheid = 0
+    bal snelheid = 0
+
+    EASY:
+        snelheid = 1, pallet grootte = 20
+
+    MEDIUM:
+        snelheid = 1,5, pallet grootte = 15
+
+    HARD:
+        snelheid = 2, pallet grootte = 10
+
+    definieer kleuren van: bal, rackets, muren, achtergrond
+    definieer gebruikte font (Calibri)
+
+initializeer schermgrootte
+zet een caption voor het scherm
+
+teken veld aan de hand van geinitializeerde waardes
+teken een scorebord aan de rechter kant
+haal de waarden van scorebord uit flat file in zelfde dir, als dit niet bestaat, maak nieuwe
+
+start spel:
+    als beurten <=10, vraag niveau
+    anders, continue
+
+    start game clock
+    start bal in willekeurige directie
+    wacht op input van speler
+    wanneer input van speler:
+        verwerk (omhoog, omlaag)
+    
+    wanneer bal botst:
+        Je raakt je pallet op 10, dan is de hoek 0°
+
+        Je raakt je pallet onder de 10, dan is de hoek naar onder
+
+        Je raakt je pallet boven de 10, dan is de hoek naar boven
+
+        Je raakt je pallet op 12 of op 8, dan is de hoek 15° naar onder of naar boven
+
+        Je raakt je pallet op 14 of op 6, dan is de hoek 30° naar onder of naar boven
+
+        Je raakt je pallet op 16 of op 4, dan is de hoek 45° naar onder of naar boven
+
+        Je raakt je pallet op 18 of op 2, dan is de hoek 60° naar onder of naar boven
+
+        Je raakt je pallet op 20 of op 0, dan is de hoek 75° naar onder of naar boven
+
+    wanneer bal naast pallet, eindig huidige spel
+    wanneer high score, verplaats in flat file
+
+    wanneer onder of gelijk aan 10 beurten, start spel
+    anders, eindig spel
