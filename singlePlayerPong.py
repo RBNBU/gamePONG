@@ -18,9 +18,9 @@ gameRight = game_X_Offset + gameWidth
 gameTop = game_Y_Offset
 gameBottom = game_Y_Offset + gameHeight
 
-#ball config
+#ball & paddle config
 ballRadius = 4
-ballSpeed = 3
+ballSpeed = -3
 paddleWidth = 10
 paddle_X_Pos = gameRight - paddleWidth - 5
 paddleSpeed = 6
@@ -28,9 +28,9 @@ turnsPerGame = 10
 
 #dificulty config
 difficulties = {
-    "Easy":   {"speed_multiplier": 1.0, "paddle_height": 40},
-    "Medium": {"speed_multiplier": 1.5, "paddle_height": 30},
-    "Hard":   {"speed_multiplier": 2.0, "paddle_height": 20}
+    "Easy":   {"speed_multiplier": 1.0, "paddle_height": 60},
+    "Medium": {"speed_multiplier": 1.5, "paddle_height": 50},
+    "Hard":   {"speed_multiplier": 2.0, "paddle_height": 40}
 }
 #highscore txt file
 highScore = "high_scores.txt"
@@ -210,16 +210,20 @@ while running_main_loop:
         ball_rect_obj.x += ball_speed_vec[0]
         ball_rect_obj.y += ball_speed_vec[1]
 
+        #ball bounce on paddle
         current_paddle_rect = pygame.Rect(paddle_X_Pos, paddle_y_pos, paddleWidth, current_paddle_height)
         if ball_rect_obj.colliderect(current_paddle_rect) and ball_speed_vec[0] > 0:
             y_intersect = (current_paddle_rect.centery) - ball_rect_obj.centery
             norm_y_intersect = y_intersect / (current_paddle_height / 2.0)
             angle = math.radians(-norm_y_intersect * 75.0)
+
             #to prevent vertical bounces on the paddle
-            if angle == 90:
-                angle = 105
-            elif angle == 180:
-                angle == 165
+            while angle == 90 or angle == 180:
+                if angle == 90:
+                    angle = 105
+                elif angle == 180:
+                    angle == 165
+
             speed = math.hypot(*ball_speed_vec)
             ball_speed_vec = [-speed * math.cos(angle), speed * math.sin(angle)]
             ball_rect_obj.right = current_paddle_rect.left - 1
