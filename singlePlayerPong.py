@@ -185,8 +185,10 @@ while running_main_loop:
 
     elif current_game_state == "PLAYING":
         keys_pressed = pygame.key.get_pressed()
-        if keys_pressed[pygame.K_UP] and paddle_y_pos > PLAY_AREA_TOP: paddle_y_pos -= PADDLE_SPEED
-        if keys_pressed[pygame.K_DOWN] and paddle_y_pos < PLAY_AREA_BOTTOM - current_paddle_height: paddle_y_pos += PADDLE_SPEED
+        if keys_pressed[pygame.K_UP] and paddle_y_pos > PLAY_AREA_TOP:
+            paddle_y_pos -= PADDLE_SPEED
+        if keys_pressed[pygame.K_DOWN] and paddle_y_pos < PLAY_AREA_BOTTOM - current_paddle_height:
+            paddle_y_pos += PADDLE_SPEED
         paddle_y_pos = max(PLAY_AREA_TOP, min(paddle_y_pos, PLAY_AREA_BOTTOM - current_paddle_height))
 
         ball_rect_obj.x += ball_speed_vec[0]
@@ -197,6 +199,10 @@ while running_main_loop:
             y_intersect = (current_paddle_rect.centery) - ball_rect_obj.centery
             norm_y_intersect = y_intersect / (current_paddle_height / 2.0)
             angle = math.radians(-norm_y_intersect * 75.0) 
+            if angle == 90:
+                angle = 105
+            elif angle == 180:
+                angle == 165
             speed = math.hypot(*ball_speed_vec)
             ball_speed_vec = [-speed * math.cos(angle), speed * math.sin(angle)]
             ball_rect_obj.right = current_paddle_rect.left - 1
