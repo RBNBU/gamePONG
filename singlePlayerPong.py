@@ -46,21 +46,21 @@ pygame.display.set_caption("Pong")
 #start clock
 clock = pygame.time.Clock()
 #font config
-title_font = pygame.font.Font(None, 70)
-header_font = pygame.font.Font(None, 50)
-game_font = pygame.font.Font(None, 40)
-small_font = pygame.font.Font(None, 30)
-input_font = pygame.font.Font(None, 36)
+titleFont = pygame.font.Font(None, 70)
+headerFont = pygame.font.Font(None, 50)
+gameFont = pygame.font.Font(None, 40)
+smallFont = pygame.font.Font(None, 30)
+inputFont = pygame.font.Font(None, 36)
 
 #functoins to prevent repetition for drawing text on screen
 def drawTextOnScreen(text, font, color, surface, x, y, center_x=True, center_y=False):
-    text_surface = font.render(text, True, color)
-    text_rect = text_surface.get_rect()
-    if center_x and center_y: text_rect.center = (x,y)
-    elif center_x: text_rect.centerx = x; text_rect.y = y
-    elif center_y: text_rect.centery = y; text_rect.x = x
-    else: text_rect.topleft = (x,y)
-    surface.blit(text_surface, text_rect)
+    textSurface = font.render(text, True, color)
+    textRect = textSurface.get_rect()
+    if center_x and center_y: textRect.center = (x,y)
+    elif center_x: textRect.centerx = x; textRect.y = y
+    elif center_y: textRect.centery = y; textRect.x = x
+    else: textRect.topleft = (x,y)
+    surface.blit(textSurface, textRect)
 
 def fetchHighScores():
     scores = {}
@@ -76,255 +76,247 @@ def fetchHighScores():
     except Exception as e: print(f"Error loading scores: {e}")
     return scores
 
-def updateSaveHighScores(current_scores, difficulty, player_name, player_time):
-    if difficulty not in current_scores or player_time > current_scores[difficulty][1]:
-        current_scores[difficulty] = (player_name, player_time)
+def updateSaveHighScores(currentScores, difficulty, player_name, player_time):
+    if difficulty not in currentScores or player_time > currentScores[difficulty][1]:
+        currentScores[difficulty] = (player_name, player_time)
         try:
             with open(highScore, 'w') as f:
-                for diff_key in sorted(current_scores.keys()):
-                    name, time_val = current_scores[diff_key]
-                    f.write(f"{diff_key}:{name}:{time_val:.2f}\n")
+                for diff_key in sorted(currentScores.keys()):
+                    name, timeVal = currentScores[diff_key]
+                    f.write(f"{diff_key}:{name}:{timeVal:.2f}\n")
         except Exception as e: print(f"Error saving scores: {e}")
 
 
 #default variables
-player_name_str = ""
-difficulty_name_str = "Medium"
-current_paddle_height = difficulties[difficulty_name_str]["paddle_height"]
-paddle_y_pos = (gameTop + gameBottom) / 2 - current_paddle_height / 2
-ball_rect_obj = pygame.Rect(0,0, ballRadius*2, ballRadius*2)
-ball_speed_vec = [0,0]
-turns_count = 0
-total_game_time = 0.0
-turn_start_time_ticks = 0
-current_game_state = "getPlayerName"
-high_scores_data = fetchHighScores()
+playerNameStr = ""
+difficultyNameStr = "Medium"
+currentPaddleHeight = difficulties[difficultyNameStr]["paddle_height"]
+paddle_Y_Pos = (gameTop + gameBottom) / 2 - currentPaddleHeight / 2
+ballRectObj = pygame.Rect(0,0, ballRadius*2, ballRadius*2)
+ballSpeedVec = [0,0]
+turnsCount = 0
+totalGameTime = 0.0
+turnStartTimeTicks = 0
+currentGameState = "getPlayerName"
+highScoresData = fetchHighScores()
 
 
 def resetBall():
-    global turn_start_time_ticks, ball_speed_vec
-    ball_rect_obj.center = (
+    global turnStartTimeTicks, ballSpeedVec
+    ballRectObj.center = (
         random.randint(gameLeft + ballRadius + 5, gameLeft + gameWidth // 2),
         random.randint(gameTop + ballRadius + 5, gameBottom - ballRadius - 5)
     )
     angle_rad = math.radians(random.uniform(-45, 45))
-    speed_mult = difficulties[difficulty_name_str]["speed_multiplier"]
+    speed_mult = difficulties[difficultyNameStr]["speed_multiplier"]
     base_s = ballSpeed * speed_mult
-    ball_speed_vec = [base_s * math.cos(angle_rad), base_s * math.sin(angle_rad)]
-    turn_start_time_ticks = pygame.time.get_ticks()
+    ballSpeedVec = [base_s * math.cos(angle_rad), base_s * math.sin(angle_rad)]
+    turnStartTimeTicks = pygame.time.get_ticks()
 
 
 #main loop
-running_main_loop = True
-while running_main_loop:
+runningMainLoop = True
+while runningMainLoop:
     for event in pygame.event.get(): 
         if event.type == pygame.QUIT:
-            running_main_loop = False
+            runningMainLoop = False
 
     #get player name screen
-    if current_game_state == "getPlayerName":
-        input_box = pygame.Rect(screenWidth/2 - 150, screenHeight/2 - 20, 300, 40)
-        done_button = pygame.Rect(screenWidth/2 - 75, screenHeight/2 + 50, 150, 40)
-        is_input_active = False
-        name_typed = ""
+    if currentGameState == "getPlayerName":
+        inputBox = pygame.Rect(screenWidth/2 - 150, screenHeight/2 - 20, 300, 40)
+        dontButton = pygame.Rect(screenWidth/2 - 75, screenHeight/2 + 50, 150, 40)
+        isInputActive = False
+        nameTyped = ""
         
-        sub_loop_running = True
-        while sub_loop_running:
+        subLoopRunning = True
+        while subLoopRunning:
             for event in pygame.event.get():
-                if event.type == pygame.QUIT: running_main_loop = False; sub_loop_running = False; break
+                if event.type == pygame.QUIT: runningMainLoop = False; subLoopRunning = False; break
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    is_input_active = input_box.collidepoint(event.pos)
-                    if done_button.collidepoint(event.pos) and name_typed.strip():
-                        player_name_str = name_typed.strip()
-                        current_game_state = "difficultySelect"
-                        sub_loop_running = False
-                if event.type == pygame.KEYDOWN and is_input_active:
-                    if event.key == pygame.K_RETURN and name_typed.strip():
-                        player_name_str = name_typed.strip()
-                        current_game_state = "difficultySelect"
-                        sub_loop_running = False
-                    elif event.key == pygame.K_BACKSPACE: name_typed = name_typed[:-1]
-                    elif len(name_typed) < 20: name_typed += event.unicode
-            if not running_main_loop: break
+                    isInputActive = inputBox.collidepoint(event.pos)
+                    if dontButton.collidepoint(event.pos) and nameTyped.strip():
+                        playerNameStr = nameTyped.strip()
+                        currentGameState = "difficultySelect"
+                        subLoopRunning = False
+                if event.type == pygame.KEYDOWN and isInputActive:
+                    if event.key == pygame.K_RETURN and nameTyped.strip():
+                        playerNameStr = nameTyped.strip()
+                        currentGameState = "difficultySelect"
+                        subLoopRunning = False
+                    elif event.key == pygame.K_BACKSPACE: nameTyped = nameTyped[:-1]
+                    elif len(nameTyped) < 20: nameTyped += event.unicode
+            if not runningMainLoop: break
             
             screen.fill(BLACK)
-            drawTextOnScreen("Voer je naam in:", header_font, WHITE, screen, screenWidth/2, screenHeight/3, True, True)
-            box_color = LIGHT_BLUE if is_input_active else GREY
-            pygame.draw.rect(screen, box_color, input_box, 0 if is_input_active else 2)
-            name_surface = input_font.render(name_typed, True, BLACK if is_input_active else WHITE)
-            input_box.w = max(200, name_surface.get_width() + 20); input_box.x = screenWidth/2 - input_box.w/2
-            screen.blit(name_surface, (input_box.x + 10, input_box.y + 5))
-            pygame.draw.rect(screen, LIGHT_BLUE, done_button)
-            drawTextOnScreen("Klaar", game_font, BLACK, screen, done_button.centerx, done_button.centery, True, True)
+            drawTextOnScreen("Voer je naam in:", headerFont, WHITE, screen, screenWidth/2, screenHeight/3, True, True)
+            box_color = LIGHT_BLUE if isInputActive else GREY
+            pygame.draw.rect(screen, box_color, inputBox, 0 if isInputActive else 2)
+            nameSurface = inputFont.render(nameTyped, True, BLACK if isInputActive else WHITE)
+            inputBox.w = max(200, nameSurface.get_width() + 20); inputBox.x = screenWidth/2 - inputBox.w/2
+            screen.blit(nameSurface, (inputBox.x + 10, inputBox.y + 5))
+            pygame.draw.rect(screen, LIGHT_BLUE, dontButton)
+            drawTextOnScreen("Klaar", gameFont, BLACK, screen, dontButton.centerx, dontButton.centery, True, True)
             pygame.display.flip()
             clock.tick(30)
-        if not running_main_loop: break
+        if not runningMainLoop: break
 
     #difficulty select screen
-    elif current_game_state == "difficultySelect":
-        buttons_list = []
-        btn_w, btn_h, btn_spacing = 200, 60, 20
-        total_btn_height = (btn_h + btn_spacing) * len(difficulties) - btn_spacing
-        btns_start_y = screenHeight/2 - total_btn_height/2 + 30
-        for i, diff_name in enumerate(difficulties.keys()):
-            rect = pygame.Rect(screenWidth/2 - btn_w/2, btns_start_y + i * (btn_h + btn_spacing), btn_w, btn_h)
-            buttons_list.append({'rect': rect, 'name': diff_name})
+    elif currentGameState == "difficultySelect":
+        buttonsList = []
+        btnW, btnH, btnSpacing = 200, 60, 20
+        totalBtnHeight = (btnH + btnSpacing) * len(difficulties) - btnSpacing
+        btnsStart_Y = screenHeight/2 - totalBtnHeight/2 + 30
+        for i, diffName in enumerate(difficulties.keys()):
+            rect = pygame.Rect(screenWidth/2 - btnW/2, btnsStart_Y + i * (btnH + btnSpacing), btnW, btnH)
+            buttonsList.append({'rect': rect, 'name': diffName})
 
-        sub_loop_running = True
-        while sub_loop_running:
+        subLoopRunning = True
+        while subLoopRunning:
             for event in pygame.event.get():
-                if event.type == pygame.QUIT: running_main_loop = False; sub_loop_running = False; break
+                if event.type == pygame.QUIT: runningMainLoop = False; subLoopRunning = False; break
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    for btn_item in buttons_list:
-                        if btn_item['rect'].collidepoint(event.pos):
-                            difficulty_name_str = btn_item['name']
-                            current_paddle_height = difficulties[difficulty_name_str]['paddle_height']
-                            paddle_y_pos = (gameTop + gameBottom)/2 - current_paddle_height/2
-                            turns_count = 0
-                            total_game_time = 0.0
+                    for btnItem in buttonsList:
+                        if btnItem['rect'].collidepoint(event.pos):
+                            difficultyNameStr = btnItem['name']
+                            currentPaddleHeight = difficulties[difficultyNameStr]['paddle_height']
+                            paddle_Y_Pos = (gameTop + gameBottom)/2 - currentPaddleHeight/2
+                            turnsCount = 0
+                            totalGameTime = 0.0
                             resetBall() 
-                            turns_count = 1 
-                            current_game_state = "playing"
-                            sub_loop_running = False; break
-            if not running_main_loop: break
+                            turnsCount = 1 
+                            currentGameState = "playing"
+                            subLoopRunning = False; break
+            if not runningMainLoop: break
 
             screen.fill(BLACK)
-            drawTextOnScreen("Kies Moeilijkheidsgraad", header_font, WHITE, screen, screenWidth/2, screenHeight/4, True, True)
-            for btn_item in buttons_list:
-                pygame.draw.rect(screen, LIGHT_BLUE, btn_item['rect'])
-                pygame.draw.rect(screen, BLUE, btn_item['rect'], 3)
-                drawTextOnScreen(btn_item['name'], game_font, BLACK, screen, btn_item['rect'].centerx, btn_item['rect'].centery, True, True)
+            drawTextOnScreen("Kies Moeilijkheidsgraad", headerFont, WHITE, screen, screenWidth/2, screenHeight/4, True, True)
+            for btnItem in buttonsList:
+                pygame.draw.rect(screen, LIGHT_BLUE, btnItem['rect'])
+                pygame.draw.rect(screen, BLUE, btnItem['rect'], 3)
+                drawTextOnScreen(btnItem['name'], gameFont, BLACK, screen, btnItem['rect'].centerx, btnItem['rect'].centery, True, True)
             pygame.display.flip()
             clock.tick(30)
-        if not running_main_loop: break
+        if not runningMainLoop: break
 
     #while playing the game
-    elif current_game_state == "playing":
-        keys_pressed = pygame.key.get_pressed()
-        if keys_pressed[pygame.K_UP] and paddle_y_pos > gameTop:
-            paddle_y_pos -= paddleSpeed
-        if keys_pressed[pygame.K_DOWN] and paddle_y_pos < gameBottom - current_paddle_height:
-            paddle_y_pos += paddleSpeed
-        paddle_y_pos = max(gameTop, min(paddle_y_pos, gameBottom - current_paddle_height))
+    elif currentGameState == "playing":
+        keysPressed = pygame.key.get_pressed()
+        if keysPressed[pygame.K_UP] and paddle_Y_Pos > gameTop:
+            paddle_Y_Pos -= paddleSpeed
+        if keysPressed[pygame.K_DOWN] and paddle_Y_Pos < gameBottom - currentPaddleHeight:
+            paddle_Y_Pos += paddleSpeed
+        paddle_Y_Pos = max(gameTop, min(paddle_Y_Pos, gameBottom - currentPaddleHeight))
 
-        ball_rect_obj.x += ball_speed_vec[0]
-        ball_rect_obj.y += ball_speed_vec[1]
+        ballRectObj.x += ballSpeedVec[0]
+        ballRectObj.y += ballSpeedVec[1]
 
         #ball bounce on paddle
-        current_paddle_rect = pygame.Rect(paddle_X_Pos, paddle_y_pos, paddleWidth, current_paddle_height)
-        if ball_rect_obj.colliderect(current_paddle_rect) and ball_speed_vec[0] > 0:
-            y_intersect = (current_paddle_rect.centery) - ball_rect_obj.centery
-            norm_y_intersect = y_intersect / (current_paddle_height / 2.0)
-            angle = math.radians(-norm_y_intersect * 75.0)
+        currentPaddleRect = pygame.Rect(paddle_X_Pos, paddle_Y_Pos, paddleWidth, currentPaddleHeight)
+        if ballRectObj.colliderect(currentPaddleRect) and ballSpeedVec[0] > 0:
+            yIntersect = (currentPaddleRect.centery) - ballRectObj.centery
+            norm_yIntersect = max(-1.0, min(1.0, yIntersect / (currentPaddleHeight / 2.0)))
+            angle = math.radians(-norm_yIntersect * 75.0)
+            speed = math.hypot(*ballSpeedVec)
+            ballSpeedVec = [-speed * math.cos(angle), speed * math.sin(angle)]
+            ballRectObj.right = currentPaddleRect.left - 1
 
-            #to prevent vertical bounces on the paddle
-            while angle == 90 or angle == 180:
-                if angle == 90:
-                    angle = 105
-                elif angle == 180:
-                    angle == 165
-
-            speed = math.hypot(*ball_speed_vec)
-            ball_speed_vec = [-speed * math.cos(angle), speed * math.sin(angle)]
-            ball_rect_obj.right = current_paddle_rect.left - 1
-
-        if ball_rect_obj.top <= gameTop or ball_rect_obj.bottom >= gameBottom:
-            ball_speed_vec[1] *= -1
-            ball_rect_obj.top = max(gameTop + 1, ball_rect_obj.top)
-            ball_rect_obj.bottom = min(gameBottom - 1, ball_rect_obj.bottom)
-        if ball_rect_obj.left <= gameLeft:
-            ball_speed_vec[0] *= -1; ball_rect_obj.left = gameLeft + 1
-        if ball_rect_obj.right >= gameRight:
-            current_game_state = "turnOver"
+        if ballRectObj.top <= gameTop or ballRectObj.bottom >= gameBottom:
+            ballSpeedVec[1] *= -1
+            ballRectObj.top = max(gameTop + 1, ballRectObj.top)
+            ballRectObj.bottom = min(gameBottom - 1, ballRectObj.bottom)
+        if ballRectObj.left <= gameLeft:
+            ballSpeedVec[0] *= -1; ballRectObj.left = gameLeft + 1
+        if ballRectObj.right >= gameRight:
+            currentGameState = "turnOver"
 
         #info panel / highscore panel
         screen.fill(GREY)
         pygame.draw.rect(screen, BLACK, (game_X_Offset, game_Y_Offset, gameWidth, gameHeight))
-        info_y_pos = infoPanel_Y_Start
-        drawTextOnScreen(f"Speler: {player_name_str}", game_font, BLACK, screen, infoPanel_X_Start, info_y_pos, False)
-        info_y_pos += 35; drawTextOnScreen(f"Level: {difficulty_name_str}", game_font, BLACK, screen, infoPanel_X_Start, info_y_pos, False)
-        info_y_pos += 35; drawTextOnScreen(f"Beurt: {turns_count}/{turnsPerGame}", game_font, BLACK, screen, infoPanel_X_Start, info_y_pos, False)
-        live_time_now = (pygame.time.get_ticks() - turn_start_time_ticks) / 1000.0
-        current_total_time = total_game_time + live_time_now
-        info_y_pos += 35; drawTextOnScreen(f"Tijd: {current_total_time:.2f}s", game_font, BLACK, screen, infoPanel_X_Start, info_y_pos, False)
+        info_Y_pos = infoPanel_Y_Start
+        drawTextOnScreen(f"Speler: {playerNameStr}", gameFont, BLACK, screen, infoPanel_X_Start, info_Y_pos, False)
+        info_Y_pos += 35; drawTextOnScreen(f"Level: {difficultyNameStr}", gameFont, BLACK, screen, infoPanel_X_Start, info_Y_pos, False)
+        info_Y_pos += 35; drawTextOnScreen(f"Beurt: {turnsCount}/{turnsPerGame}", gameFont, BLACK, screen, infoPanel_X_Start, info_Y_pos, False)
+        liveTime = (pygame.time.get_ticks() - turnStartTimeTicks) / 1000.0
+        current_total_time = totalGameTime + liveTime
+        info_Y_pos += 35; drawTextOnScreen(f"Tijd: {current_total_time:.2f}s", gameFont, BLACK, screen, infoPanel_X_Start, info_Y_pos, False)
         
-        info_y_pos += 60; drawTextOnScreen("Beste Scores:", header_font, BLACK, screen, infoPanel_X_Start, info_y_pos, False)
-        info_y_pos += 45
-        if not high_scores_data:
-            drawTextOnScreen("Nog geen scores!", small_font, BLACK, screen, infoPanel_X_Start + 10, info_y_pos, False)
+        info_Y_pos += 60; drawTextOnScreen("Beste Scores:", headerFont, BLACK, screen, infoPanel_X_Start, info_Y_pos, False)
+        info_Y_pos += 45
+        if not highScoresData:
+            drawTextOnScreen("Nog geen scores!", smallFont, BLACK, screen, infoPanel_X_Start + 10, info_Y_pos, False)
         else:
-            for diff_hs_key in sorted(difficulties.keys()):
-                hs_text = f"{diff_hs_key}: "
-                if diff_hs_key in high_scores_data: hs_text += f"{high_scores_data[diff_hs_key][0]} - {high_scores_data[diff_hs_key][1]:.2f}s"
-                else: hs_text += "Nog geen score"
-                drawTextOnScreen(hs_text, small_font, BLACK, screen, infoPanel_X_Start + 10, info_y_pos, False)
-                info_y_pos += 25
+            for diffHsKey in sorted(difficulties.keys()):
+                hsText = f"{diffHsKey}: "
+                if diffHsKey in highScoresData: hsText += f"{highScoresData[diffHsKey][0]} - {highScoresData[diffHsKey][1]:.2f}s"
+                else: hsText += "Nog geen score"
+                drawTextOnScreen(hsText, smallFont, BLACK, screen, infoPanel_X_Start + 10, info_Y_pos, False)
+                info_Y_pos += 25
 
-        pygame.draw.rect(screen, RED, current_paddle_rect)
-        pygame.draw.circle(screen, GREEN, ball_rect_obj.center, ballRadius)
+        pygame.draw.rect(screen, RED, currentPaddleRect)
+        pygame.draw.circle(screen, GREEN, ballRectObj.center, ballRadius)
         pygame.display.flip()
 
     #when turn over, "died but have lives left"
-    elif current_game_state == "turnOver":
-        turn_duration = (pygame.time.get_ticks() - turn_start_time_ticks) / 1000.0
-        total_game_time += turn_duration
+    elif currentGameState == "turnOver":
+        turnDuration = (pygame.time.get_ticks() - turnStartTimeTicks) / 1000.0
+        totalGameTime += turnDuration
         
         screen.fill(GREY)
-        drawTextOnScreen("BEURT VOORBIJ!", header_font, RED, screen, screenWidth/2, screenHeight/2 - 80, True, True)
-        drawTextOnScreen(f"Beurten over: {turnsPerGame - turns_count}", game_font, WHITE, screen, screenWidth/2, screenHeight/2, True, True)
-        drawTextOnScreen("Druk op een toets", small_font, WHITE, screen, screenWidth/2, screenHeight/2 + 50, True, True)
+        drawTextOnScreen("BEURT VOORBIJ!", headerFont, RED, screen, screenWidth/2, screenHeight/2 - 80, True, True)
+        drawTextOnScreen(f"Beurten over: {turnsPerGame - turnsCount}", gameFont, WHITE, screen, screenWidth/2, screenHeight/2, True, True)
+        drawTextOnScreen("Druk op een toets", smallFont, WHITE, screen, screenWidth/2, screenHeight/2 + 50, True, True)
         pygame.display.flip()
 
-        key_pressed_flag = False
-        wait_timeout_start = pygame.time.get_ticks()
-        while not key_pressed_flag and (pygame.time.get_ticks() - wait_timeout_start < 2500): 
+        keyPressedFlag = False
+        waitTimeoutStart = pygame.time.get_ticks()
+        while not keyPressedFlag and (pygame.time.get_ticks() - waitTimeoutStart < 2500): 
             for event in pygame.event.get():
-                if event.type == pygame.QUIT: running_main_loop = False; break
-                if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN: key_pressed_flag = True; break
-            if not running_main_loop:
+                if event.type == pygame.QUIT: runningMainLoop = False; break
+                if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN: keyPressedFlag = True; break
+            if not runningMainLoop:
                 break
             clock.tick(30) 
-        if not running_main_loop:
+        if not runningMainLoop:
             break
 
-        if turns_count < turnsPerGame:
-            turns_count += 1
+        if turnsCount < turnsPerGame:
+            turnsCount += 1
             resetBall()
-            current_game_state = "playing"
+            currentGameState = "playing"
         else:
-            current_game_state = "gameOver"
+            currentGameState = "gameOver"
     
     #no lives left, game over
-    elif current_game_state == "gameOver":
-        updateSaveHighScores(high_scores_data, difficulty_name_str, player_name_str, total_game_time)
+    elif currentGameState == "gameOver":
+        updateSaveHighScores(highScoresData, difficultyNameStr, playerNameStr, totalGameTime)
         
-        play_again_button_rect = pygame.Rect(screenWidth/2 - 150, screenHeight*2/3, 300, 50)
-        quit_button_rect = pygame.Rect(screenWidth/2 - 150, screenHeight*2/3 + 70, 300, 50)
+        playAgainButtonRect = pygame.Rect(screenWidth/2 - 150, screenHeight*2/3, 300, 50)
+        quitButtonRect = pygame.Rect(screenWidth/2 - 150, screenHeight*2/3 + 70, 300, 50)
         
-        sub_loop_running = True
-        while sub_loop_running:
+        subLoopRunning = True
+        while subLoopRunning:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    running_main_loop = False; sub_loop_running = False; break
+                    runningMainLoop = False; subLoopRunning = False; break
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    if play_again_button_rect.collidepoint(event.pos): 
-                        current_game_state = "getPlayerName"; sub_loop_running = False
-                    if quit_button_rect.collidepoint(event.pos): 
-                        running_main_loop = False; sub_loop_running = False
-            if not running_main_loop:
+                    if playAgainButtonRect.collidepoint(event.pos): 
+                        currentGameState = "getPlayerName"; subLoopRunning = False
+                    if quitButtonRect.collidepoint(event.pos): 
+                        runningMainLoop = False; subLoopRunning = False
+            if not runningMainLoop:
                 break
 
             screen.fill(BLACK)
-            drawTextOnScreen("SPEL VOORBIJ!", title_font, YELLOW, screen, screenWidth/2, screenHeight/3, True, True)
-            drawTextOnScreen(f"{player_name_str} ({difficulty_name_str})", game_font, LIGHT_BLUE, screen, screenWidth/2, screenHeight/3 + 60, True, True)
-            drawTextOnScreen(f"Totale Tijd: {total_game_time:.2f}s", header_font, WHITE, screen, screenWidth/2, screenHeight/2 + 20, True, True)
-            pygame.draw.rect(screen, LIGHT_BLUE, play_again_button_rect)
-            drawTextOnScreen("Nieuw Spel", game_font, BLACK, screen, play_again_button_rect.centerx, play_again_button_rect.centery, True, True)
-            pygame.draw.rect(screen, LIGHT_BLUE, quit_button_rect)
-            drawTextOnScreen("Afsluiten", game_font, BLACK, screen, quit_button_rect.centerx, quit_button_rect.centery, True, True)
+            drawTextOnScreen("SPEL VOORBIJ!", titleFont, YELLOW, screen, screenWidth/2, screenHeight/3, True, True)
+            drawTextOnScreen(f"{playerNameStr} ({difficultyNameStr})", gameFont, LIGHT_BLUE, screen, screenWidth/2, screenHeight/3 + 60, True, True)
+            drawTextOnScreen(f"Totale Tijd: {totalGameTime:.2f}s", headerFont, WHITE, screen, screenWidth/2, screenHeight/2 + 20, True, True)
+            pygame.draw.rect(screen, LIGHT_BLUE, playAgainButtonRect)
+            drawTextOnScreen("Nieuw Spel", gameFont, BLACK, screen, playAgainButtonRect.centerx, playAgainButtonRect.centery, True, True)
+            pygame.draw.rect(screen, LIGHT_BLUE, quitButtonRect)
+            drawTextOnScreen("Afsluiten", gameFont, BLACK, screen, quitButtonRect.centerx, quitButtonRect.centery, True, True)
             pygame.display.flip()
             clock.tick(30)
-        if not running_main_loop:
+        if not runningMainLoop:
             break
 
     clock.tick(60)
