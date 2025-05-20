@@ -2,6 +2,7 @@ import pygame
 import random
 import math
 import os
+import paho.mqtt.client as mqtt
 
 #color config
 BLACK, WHITE, RED, GREEN, BLUE = (0,0,0), (255,255,255), (255,0,0), (0,255,0), (0,0,255)
@@ -28,9 +29,9 @@ turnsPerGame = 10
 
 #dificulty config
 difficulties = {
-    "Easy":   {"speed_multiplier": 1.0, "paddle_height": 60},
-    "Medium": {"speed_multiplier": 1.5, "paddle_height": 50},
-    "Hard":   {"speed_multiplier": 2.0, "paddle_height": 40}
+"Easy":   {"speed_multiplier": 1.0, "paddle_height": 60},
+"Medium": {"speed_multiplier": 1.5, "paddle_height": 50},
+"Hard":   {"speed_multiplier": 2.0, "paddle_height": 40}
 }
 #highscore txt file
 highScore = "high_scores.txt"
@@ -38,6 +39,12 @@ highScore = "high_scores.txt"
 #infopanel config
 infoPanel_X_Start = game_X_Offset + gameWidth + 50
 infoPanel_Y_Start = game_Y_Offset
+
+# MQTT config
+MQTT_BROKER = "192.168.0.157"
+MQTT_PORT = 1883
+MQTT_TOPIC_GAME = "game/Ruben"
+mqtt_paddle_direction = None
 
 #initialize pygame
 pygame.init()
@@ -51,6 +58,33 @@ headerFont = pygame.font.Font(None, 50)
 gameFont = pygame.font.Font(None, 40)
 smallFont = pygame.font.Font(None, 30)
 inputFont = pygame.font.Font(None, 36)
+
+def on_connect_mqtt(client, userdata, flags, rc):
+    if rc == 0:
+        client.subscribe(MQTT_TOPIC_GAME)
+    else:
+        print(f"Failed to connect to MQTT broker, return code {rc}")
+
+def on_message_mqtt(client, userdata, msg):
+    global mqtt_paddle_direction
+    payload = msg.payload.decode()
+    if payload == "up":
+        mqtt_paddle_direction = "up"
+    elif payload == "down":
+        mqtt_paddle_direction = "down"
+    elif payload == "hold":
+        mqtt_paddle_direction = None
+
+mqtt_client = mqtt.Client()
+mqtt_client.on_connect = on_connect_mqtt
+mqtt_client.on_message = on_message_mqtt
+
+try:
+    mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
+    mqtt_client.loop_start()
+except Exception as e:
+    print(f"MQTT connection error: {e}")
+
 
 #functoins to prevent repetition for drawing text on screen
 def drawTextOnScreen(text, font, color, surface, x, y, center_x=True, center_y=False):
@@ -79,27 +113,25 @@ def fetchHighScores():
 def updateSaveHighScores(currentScores, difficulty, player_name, player_time):
     if difficulty not in currentScores or player_time > currentScores[difficulty][1]:
         currentScores[difficulty] = (player_name, player_time)
-        try:
-            with open(highScore, 'w') as f:
-                for diff_key in sorted(currentScores.keys()):
-                    name, timeVal = currentScores[diff_key]
-                    f.write(f"{diff_key}:{name}:{timeVal:.2f}\n")
-        except Exception as e: print(f"Error saving scores: {e}")
-
+    try:
+        with open(highScore, 'w') as f:
+            for diff_key in sorted(currentScores.keys()):
+                name, timeVal = currentScores[diff_key]
+                f.write(f"{diff_key}:{name}:{timeVal:.2f}\n")
+    except Exception as e: print(f"Error saving scores: {e}")
 
 #default variables
 playerNameStr = ""
 difficultyNameStr = "Medium"
 currentPaddleHeight = difficulties[difficultyNameStr]["paddle_height"]
 paddle_Y_Pos = (gameTop + gameBottom) / 2 - currentPaddleHeight / 2
-ballRectObj = pygame.Rect(0,0, ballRadius*2, ballRadius*2)
+ballRectObj = pygame.Rect(0,0, ballRadius * 2, ballRadius * 2)
 ballSpeedVec = [0,0]
 turnsCount = 0
 totalGameTime = 0.0
 turnStartTimeTicks = 0
 currentGameState = "getPlayerName"
 highScoresData = fetchHighScores()
-
 
 def resetBall():
     global turnStartTimeTicks, ballSpeedVec
@@ -113,11 +145,10 @@ def resetBall():
     ballSpeedVec = [base_s * math.cos(angle_rad), base_s * math.sin(angle_rad)]
     turnStartTimeTicks = pygame.time.get_ticks()
 
-
 #main loop
 runningMainLoop = True
 while runningMainLoop:
-    for event in pygame.event.get(): 
+    for event in pygame.event.get():
         if event.type == pygame.QUIT:
             runningMainLoop = False
 
@@ -200,6 +231,15 @@ while runningMainLoop:
 
     #while playing the game
     elif currentGameState == "playing":
+        #MQTT controls        
+        if mqtt_paddle_direction == "up":
+            if paddle_Y_Pos > gameTop:
+                paddle_Y_Pos -= paddleSpeed
+        elif mqtt_paddle_direction == "down":
+            if paddle_Y_Pos < gameBottom - currentPaddleHeight:
+                paddle_Y_Pos += paddleSpeed
+
+        #Keyboard controls
         keysPressed = pygame.key.get_pressed()
         if keysPressed[pygame.K_UP] and paddle_Y_Pos > gameTop:
             paddle_Y_Pos -= paddleSpeed
@@ -210,7 +250,6 @@ while runningMainLoop:
         ballRectObj.x += ballSpeedVec[0]
         ballRectObj.y += ballSpeedVec[1]
 
-        #ball bounce on paddle
         currentPaddleRect = pygame.Rect(paddle_X_Pos, paddle_Y_Pos, paddleWidth, currentPaddleHeight)
         if ballRectObj.colliderect(currentPaddleRect) and ballSpeedVec[0] > 0:
             yIntersect = (currentPaddleRect.centery) - ballRectObj.centery
@@ -229,7 +268,6 @@ while runningMainLoop:
         if ballRectObj.right >= gameRight:
             currentGameState = "turnOver"
 
-        #info panel / highscore panel
         screen.fill(GREY)
         pygame.draw.rect(screen, BLACK, (game_X_Offset, game_Y_Offset, gameWidth, gameHeight))
         info_Y_pos = infoPanel_Y_Start
@@ -285,7 +323,7 @@ while runningMainLoop:
             currentGameState = "playing"
         else:
             currentGameState = "gameOver"
-    
+
     #no lives left, game over
     elif currentGameState == "gameOver":
         updateSaveHighScores(highScoresData, difficultyNameStr, playerNameStr, totalGameTime)
@@ -321,4 +359,6 @@ while runningMainLoop:
 
     clock.tick(60)
 
+mqtt_client.loop_stop()
+mqtt_client.disconnect()
 pygame.quit()
