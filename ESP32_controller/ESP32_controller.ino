@@ -3,8 +3,8 @@
 
 uint8_t gatewayAddress[] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF}; //REPLACE 
 
-const int BUTTON_UP_PIN = 2;
-const int BUTTON_DOWN_PIN = 4;
+const int buttonUpPin = 2;
+const int buttonDownPin = 4;
 
 esp_now_peer_info_t peerInfo;
 
@@ -84,14 +84,14 @@ void setup() {
   }
   Serial.println("Peer (Gateway) Added.");
 
-  pinMode(BUTTON_UP_PIN, INPUT_PULLUP);
-  pinMode(BUTTON_DOWN_PIN, INPUT_PULLUP);
+  pinMode(buttonUpPin, INPUT_PULLUP);
+  pinMode(buttonDownPin, INPUT_PULLUP);
 
   Serial.println("Setup complete. Ready to send button states.");
 }
 
 void loop() {
-  int readingUp = digitalRead(BUTTON_UP_PIN);
+  int readingUp = digitalRead(buttonUpPin);
   if (readingUp != lastButtonUpState) {
     lastDebounceTimeUp = millis();
   }
@@ -102,7 +102,7 @@ void loop() {
   }
   lastButtonUpState = readingUp;
 
-  int readingDown = digitalRead(BUTTON_DOWN_PIN);
+  int readingDown = digitalRead(buttonDownPin);
   if (readingDown != lastButtonDownState) {
     lastDebounceTimeDown = millis();
   }
