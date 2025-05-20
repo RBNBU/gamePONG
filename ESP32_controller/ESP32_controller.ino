@@ -1,27 +1,30 @@
 #include <esp_now.h>
 #include <WiFi.h>
 
-uint8_t gatewayAddress[] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF}; //REPLACE 
+uint8_t gatewayAddress[] = {0x1C, 0x69, 0x20, 0xCD, 0x58, 0x58};
 
 const int buttonUpPin = 2;
 const int buttonDownPin = 4;
 
 esp_now_peer_info_t peerInfo;
 
-int lastButtonUpState = HIGH;
-int lastButtonDownState = HIGH;
-int currentButtonUpState;
-int currentButtonDownState;
+int lastRawButtonUpState = HIGH;
+int lastRawButtonDownState = HIGH;
+int currentDebouncedButtonUpState = HIGH;
+int currentDebouncedButtonDownState = HIGH;
 
-String lastMessageSent = "";
-
+String lastMessageActuallySent = "";
 unsigned long lastDebounceTimeUp = 0;
 unsigned long lastDebounceTimeDown = 0;
 unsigned long debounceDelay = 50;
 
-
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  Serial.print("ESP-NOW Send Status: ");
+  Serial.print("\r\nESP-NOW Send Status to ");
+  for (int i = 0; i < 6; i++) {
+    Serial.print(mac_addr[i], HEX);
+    if (i < 5) Serial.print(":");
+  }
+  Serial.print(" : ");
   if (status == ESP_NOW_SEND_SUCCESS) {
     Serial.println("Delivery success");
   } else {
@@ -29,98 +32,112 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   }
 }
 
-void sendEspNowMessage(const char* message) {
-  if (message == nullptr) return;
-
-  if (String(message) != lastMessageSent || (String(message) != "hold")) {
-    esp_err_t result = esp_now_send(gatewayAddress, (uint8_t *) message, strlen(message));
-    
-    if (result == ESP_OK) {
-      Serial.print("Sent message: ");
-      Serial.println(message);
-      lastMessageSent = message;
-    } else {
-      Serial.print("Error sending message: ");
-      Serial.println(message);
-    }
-  } else if (String(message) == "hold" && lastMessageSent != "hold") {
-     esp_err_t result = esp_now_send(gatewayAddress, (uint8_t *) message, strlen(message));
-    if (result == ESP_OK) {
-      Serial.print("Sent message (transition to hold): ");
-      Serial.println(message);
-      lastMessageSent = message;
-    } else {
-      Serial.print("Error sending message (transition to hold): ");
-      Serial.println(message);
-    }
-  }
-}
-
 void setup() {
   Serial.begin(115200);
-  while (!Serial); 
-
-  Serial.println("ESP32 ESP-NOW Button Sender");
+  while (!Serial) {
+    delay(10);
+  }
+  Serial.println("\nESP32 ESP-NOW Button Sender");
 
   WiFi.mode(WIFI_STA);
   Serial.print("This ESP32 (Sender) MAC Address: ");
-  Serial.println(WiFi.macAddress()); 
+  Serial.println(WiFi.macAddress());
 
   if (esp_now_init() != ESP_OK) {
     Serial.println("Error initializing ESP-NOW");
-    return;
+    while (1) delay(1000);
   }
   Serial.println("ESP-NOW Initialized.");
 
   esp_now_register_send_cb(OnDataSent);
 
   memcpy(peerInfo.peer_addr, gatewayAddress, 6);
-  peerInfo.channel = 0; 
-  peerInfo.encrypt = false; 
-  
-  if (esp_now_add_peer(&peerInfo) != ESP_OK){
+  peerInfo.channel = 0;
+  peerInfo.encrypt = false;
+
+  if (esp_now_add_peer(&peerInfo) != ESP_OK) {
     Serial.println("Failed to add peer");
-    return;
+    while (1) delay(1000);
   }
   Serial.println("Peer (Gateway) Added.");
 
   pinMode(buttonUpPin, INPUT_PULLUP);
   pinMode(buttonDownPin, INPUT_PULLUP);
 
-  Serial.println("Setup complete. Ready to send button states.");
+  lastRawButtonUpState = digitalRead(buttonUpPin);
+  lastRawButtonDownState = digitalRead(buttonDownPin);
+  currentDebouncedButtonUpState = lastRawButtonUpState;
+  currentDebouncedButtonDownState = lastRawButtonDownState;
+
+  if (currentDebouncedButtonUpState == LOW) {
+    lastMessageActuallySent = "up";
+  } else if (currentDebouncedButtonDownState == LOW) {
+    lastMessageActuallySent = "down";
+  } else {
+    lastMessageActuallySent = "hold";
+  }
+  esp_err_t result = esp_now_send(gatewayAddress, (uint8_t *)lastMessageActuallySent.c_str(), lastMessageActuallySent.length());
+  if (result == ESP_OK) {
+    Serial.print("Initial state sent: ");
+    Serial.println(lastMessageActuallySent);
+  } else {
+    Serial.print("Error sending initial state: ");
+    Serial.println(lastMessageActuallySent);
+  }
+
+
+  Serial.println("Setup complete. Monitoring buttons.");
 }
 
 void loop() {
   int readingUp = digitalRead(buttonUpPin);
-  if (readingUp != lastButtonUpState) {
+
+  if (readingUp != lastRawButtonUpState) {
     lastDebounceTimeUp = millis();
   }
+
   if ((millis() - lastDebounceTimeUp) > debounceDelay) {
-    if (readingUp != currentButtonUpState) {
-      currentButtonUpState = readingUp;
+    if (readingUp != currentDebouncedButtonUpState) {
+      currentDebouncedButtonUpState = readingUp;
     }
   }
-  lastButtonUpState = readingUp;
+  lastRawButtonUpState = readingUp;
 
   int readingDown = digitalRead(buttonDownPin);
-  if (readingDown != lastButtonDownState) {
+
+  if (readingDown != lastRawButtonDownState) {
     lastDebounceTimeDown = millis();
   }
+
   if ((millis() - lastDebounceTimeDown) > debounceDelay) {
-    if (readingDown != currentButtonDownState) {
-      currentButtonDownState = readingDown;
+    if (readingDown != currentDebouncedButtonDownState) {
+      currentDebouncedButtonDownState = readingDown;
     }
   }
-  lastButtonDownState = readingDown;
+  lastRawButtonDownState = readingDown;
 
-
-  if (currentButtonUpState == LOW) {
-    sendEspNowMessage("up");
-  } else if (currentButtonDownState == LOW) {
-    sendEspNowMessage("down");
+  String messageToSend = "";
+  if (currentDebouncedButtonUpState == LOW) {
+    messageToSend = "up";
+  } else if (currentDebouncedButtonDownState == LOW) {
+    messageToSend = "down";
   } else {
-    sendEspNowMessage("hold");
+    messageToSend = "hold";
   }
 
-  delay(20); 
+  if (messageToSend != lastMessageActuallySent) {
+    esp_err_t result = esp_now_send(gatewayAddress, (uint8_t *)messageToSend.c_str(), messageToSend.length());
+
+    if (result == ESP_OK) {
+      Serial.print("Sent message due to state change: ");
+      Serial.println(messageToSend);
+      lastMessageActuallySent = messageToSend;
+    } else {
+      Serial.print("Error sending message '");
+      Serial.print(messageToSend);
+      Serial.print("'. ESP-NOW Error Code: ");
+      Serial.println(result);
+    }
+  }
+  delay(20);
 }

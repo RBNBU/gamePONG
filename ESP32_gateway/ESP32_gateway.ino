@@ -1,7 +1,7 @@
 #include <esp_now.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
-#include secrets.h
+#include <secrets.h>
 
 const char* ssid = SECRET_SSID;
 const char* password = SECRET_PASSWORD;
@@ -18,13 +18,13 @@ PubSubClient client(espClient);
 char receivedMessage[MAX_MSG_LEN];
 volatile bool newData = false;
 
+void OnDataRecv(const esp_now_recv_info_t *info, const uint8_t *incomingData, int len) {
 
-void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) {
   if (len > 0 && len < MAX_MSG_LEN) {
     memcpy(receivedMessage, incomingData, len);
-    receivedMessage[len] = '\0'; 
+    receivedMessage[len] = '\0';
     newData = true;
-    
+
     Serial.print("ESP-NOW Bytes received: ");
     Serial.println(len);
     Serial.print("Message: ");
@@ -59,7 +59,6 @@ void reconnect_mqtt() {
     Serial.print("Attempting MQTT connection...");
     if (client.connect(mqtt_client_id)) {
       Serial.println("connected");
-
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -71,9 +70,12 @@ void reconnect_mqtt() {
 
 void setup() {
   Serial.begin(115200);
-  while (!Serial); 
+  while (!Serial) {
+    ; 
+  }
+  Serial.println("Serial Initialized.");
 
-  setup_wifi();
+  setup_wifi(); 
 
   if (esp_now_init() != ESP_OK) {
     Serial.println("Error initializing ESP-NOW");
@@ -84,7 +86,7 @@ void setup() {
   esp_now_register_recv_cb(OnDataRecv);
 
   client.setServer(mqtt_server, mqtt_port);
-  
+
   Serial.println("Setup complete.");
 }
 
@@ -92,10 +94,10 @@ void loop() {
   if (!client.connected()) {
     reconnect_mqtt();
   }
-  client.loop(); 
+  client.loop();
 
   if (newData) {
-    newData = false; 
+    newData = false;
 
     Serial.print("Publishing to MQTT topic '");
     Serial.print(mqtt_topic);
@@ -109,5 +111,4 @@ void loop() {
     }
   }
 
-  delay(10); 
 }
