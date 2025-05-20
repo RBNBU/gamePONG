@@ -33,6 +33,7 @@ difficulties = {
 "Medium": {"speed_multiplier": 1.5, "paddle_height": 50},
 "Hard":   {"speed_multiplier": 2.0, "paddle_height": 40}
 }
+
 #highscore txt file
 highScore = "high_scores.txt"
 
@@ -50,8 +51,10 @@ mqtt_paddle_direction = None
 pygame.init()
 screen = pygame.display.set_mode((screenWidth, screenHeight))
 pygame.display.set_caption("Pong")
+
 #start clock
 clock = pygame.time.Clock()
+
 #font config
 titleFont = pygame.font.Font(None, 70)
 headerFont = pygame.font.Font(None, 50)
@@ -59,12 +62,20 @@ gameFont = pygame.font.Font(None, 40)
 smallFont = pygame.font.Font(None, 30)
 inputFont = pygame.font.Font(None, 36)
 
+#play music
+try:
+    pygame.mixer.music.load("song.mp3")
+    pygame.mixer.music.play(-1)
+except pygame.error as e:
+    print(f"Cannot load music file song.mp3: {e}")
+
 def on_connect_mqtt(client, userdata, flags, rc):
     if rc == 0:
         client.subscribe(MQTT_TOPIC_GAME)
     else:
         print(f"Failed to connect to MQTT broker, return code {rc}")
 
+#define mqtt messages
 def on_message_mqtt(client, userdata, msg):
     global mqtt_paddle_direction
     payload = msg.payload.decode()
@@ -86,7 +97,7 @@ except Exception as e:
     print(f"MQTT connection error: {e}")
 
 
-#functoins to prevent repetition for drawing text on screen
+#functions to prevent repetition for drawing text on screen
 def drawTextOnScreen(text, font, color, surface, x, y, center_x=True, center_y=False):
     textSurface = font.render(text, True, color)
     textRect = textSurface.get_rect()
