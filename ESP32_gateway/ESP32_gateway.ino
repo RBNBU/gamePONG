@@ -73,9 +73,6 @@ void setup() {
   Serial.begin(115200);
   while (!Serial); 
 
-  Serial.println("ESP32 ESP-NOW Receiver to MQTT Bridge");
-
-  // 1. Setup Wi-Fi
   setup_wifi();
 
   if (esp_now_init() != ESP_OK) {
