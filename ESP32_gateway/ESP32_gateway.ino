@@ -5,7 +5,7 @@
 
 const char* ssid = SECRET_SSID;
 const char* password = SECRET_PASSWORD; 
-
+//mqtt credentials
 const char* mqttServerIp = "192.168.0.157";
 const int mqttPort = 1883;
 const char* mqttTopic = "game/Ruben";
