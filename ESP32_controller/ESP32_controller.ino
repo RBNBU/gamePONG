@@ -1,7 +1,7 @@
 #include <esp_now.h>
 #include <WiFi.h>
 
-uint8_t gatewayAddress[] = {0x1C, 0x69, 0x20, 0xCD, 0x58, 0x58};
+uint8_t gatewayAddress[] = {0x1C, 0x69, 0x20, 0xCC, 0xD5, 0xBC};
 
 const int buttonUpPin = 2;
 const int buttonDownPin = 4;
