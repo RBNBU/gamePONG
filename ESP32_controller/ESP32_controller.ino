@@ -1,8 +1,10 @@
 #include <esp_now.h>
 #include <WiFi.h>
 
+//gateway address configuration
 uint8_t gatewayAddress[] = {0x1C, 0x69, 0x20, 0xCC, 0xD5, 0xBC};
 
+//esp32 button pins
 const int buttonUpPin = 2;
 const int buttonDownPin = 4;
 
@@ -129,7 +131,7 @@ void loop() {
     esp_err_t result = esp_now_send(gatewayAddress, (uint8_t *)messageToSend.c_str(), messageToSend.length());
 
     if (result == ESP_OK) {
-      Serial.print("Sent message due to state change: ");
+      Serial.print("Sent message because of state change: ");
       Serial.println(messageToSend);
       lastMessageActuallySent = messageToSend;
     } else {
