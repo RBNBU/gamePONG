@@ -160,6 +160,7 @@ turnStartTimeTicks = 0
 currentGameState = "getPlayerName"
 highScoresData = fetchHighScores()
 
+#function to reset the ball
 def resetBall():
     global turnStartTimeTicks, ballSpeedVec
     ballRectObj.center = (
