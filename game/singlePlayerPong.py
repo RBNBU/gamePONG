@@ -29,9 +29,9 @@ turnsPerGame = 10
 
 #dificulty config
 difficulties = {
-"Easy":   {"speed_multiplier": 1.0, "paddle_height": 60},
-"Medium": {"speed_multiplier": 1.5, "paddle_height": 50},
-"Hard":   {"speed_multiplier": 2.0, "paddle_height": 40}
+"Easy":   {"speedMultiplier": 1.0, "paddleHeight": 60},
+"Medium": {"speedMultiplier": 1.5, "paddleHeight": 50},
+"Hard":   {"speedMultiplier": 2.0, "paddleHeight": 40}
 }
 
 #highscore txt file
@@ -45,7 +45,7 @@ infoPanel_Y_Start = game_Y_Offset
 MQTT_BROKER = "192.168.0.157"
 MQTT_PORT = 1883
 MQTT_TOPIC_GAME = "game/Ruben"
-mqtt_paddle_direction = None
+mqttPaddleDirection = None
 
 #initialize pygame
 pygame.init()
@@ -77,14 +77,14 @@ def on_connect_mqtt(client, userdata, flags, rc):
 
 #define mqtt messages
 def on_message_mqtt(client, userdata, msg):
-    global mqtt_paddle_direction
+    global mqttPaddleDirection
     payload = msg.payload.decode()
     if payload == "up":
-        mqtt_paddle_direction = "up"
+        mqttPaddleDirection = "up"
     elif payload == "down":
-        mqtt_paddle_direction = "down"
+        mqttPaddleDirection = "down"
     elif payload == "hold":
-        mqtt_paddle_direction = None
+        mqttPaddleDirection = None
 
 mqtt_client = mqtt.Client()
 mqtt_client.on_connect = on_connect_mqtt
@@ -107,8 +107,9 @@ def drawTextOnScreen(text, font, color, surface, x, y, center_x=True, center_y=F
     else: textRect.topleft = (x,y)
     surface.blit(textSurface, textRect)
 
+#function to get high scores from file
 def fetchHighScores():
-    scores = {}
+    scores = {diff: [] for diff in difficulties.keys()}
     if not os.path.exists(highScore): return scores
     try:
         with open(highScore, 'r') as f:
@@ -116,25 +117,40 @@ def fetchHighScores():
                 parts = line.strip().split(':', 2)
                 if len(parts) == 3:
                     diff, name, time_str = parts
-                    if diff in difficulties and (diff not in scores or float(time_str) > scores[diff][1]):
-                        scores[diff] = (name, float(time_str))
+                    if diff in scores:
+                        try:
+                            timeVal = float(time_str)
+                            scores[diff].append((name, timeVal))
+                        except ValueError:
+                            pass 
     except Exception as e: print(f"Error loading scores: {e}")
+    
+    for diffKey in scores:
+        scores[diffKey].sort(key=lambda item: item[1], reverse=True)
+        scores[diffKey] = scores[diffKey][:3]
     return scores
 
-def updateSaveHighScores(currentScores, difficulty, player_name, player_time):
-    if difficulty not in currentScores or player_time > currentScores[difficulty][1]:
-        currentScores[difficulty] = (player_name, player_time)
+#function to update the high score file
+def updateSaveHighScores(currentScores, difficulty, playerName, playerTime):
+    if difficulty not in currentScores:
+        currentScores[difficulty] = []
+    
+    currentScores[difficulty].append((playerName, playerTime))
+    currentScores[difficulty].sort(key=lambda item: item[1], reverse=True)
+    currentScores[difficulty] = currentScores[difficulty][:3]
+    
     try:
         with open(highScore, 'w') as f:
-            for diff_key in sorted(currentScores.keys()):
-                name, timeVal = currentScores[diff_key]
-                f.write(f"{diff_key}:{name}:{timeVal:.2f}\n")
+            for diffOrderedKey in difficulties.keys(): # Use defined order of difficulties
+                if diffOrderedKey in currentScores and currentScores[diffOrderedKey]:
+                    for name, timeVal in currentScores[diffOrderedKey]:
+                        f.write(f"{diffOrderedKey}:{name}:{timeVal:.2f}\n")
     except Exception as e: print(f"Error saving scores: {e}")
 
 #default variables
 playerNameStr = ""
 difficultyNameStr = "Medium"
-currentPaddleHeight = difficulties[difficultyNameStr]["paddle_height"]
+currentPaddleHeight = difficulties[difficultyNameStr]["paddleHeight"]
 paddle_Y_Pos = (gameTop + gameBottom) / 2 - currentPaddleHeight / 2
 ballRectObj = pygame.Rect(0,0, ballRadius * 2, ballRadius * 2)
 ballSpeedVec = [0,0]
@@ -151,7 +167,7 @@ def resetBall():
         random.randint(gameTop + ballRadius + 5, gameBottom - ballRadius - 5)
     )
     angle_rad = math.radians(random.uniform(-45, 45))
-    speed_mult = difficulties[difficultyNameStr]["speed_multiplier"]
+    speed_mult = difficulties[difficultyNameStr]["speedMultiplier"]
     base_s = ballSpeed * speed_mult
     ballSpeedVec = [base_s * math.cos(angle_rad), base_s * math.sin(angle_rad)]
     turnStartTimeTicks = pygame.time.get_ticks()
@@ -220,7 +236,7 @@ while runningMainLoop:
                     for btnItem in buttonsList:
                         if btnItem['rect'].collidepoint(event.pos):
                             difficultyNameStr = btnItem['name']
-                            currentPaddleHeight = difficulties[difficultyNameStr]['paddle_height']
+                            currentPaddleHeight = difficulties[difficultyNameStr]['paddleHeight']
                             paddle_Y_Pos = (gameTop + gameBottom)/2 - currentPaddleHeight/2
                             turnsCount = 0
                             totalGameTime = 0.0
@@ -243,10 +259,10 @@ while runningMainLoop:
     #while playing the game
     elif currentGameState == "playing":
         #MQTT controls        
-        if mqtt_paddle_direction == "up":
+        if mqttPaddleDirection == "up":
             if paddle_Y_Pos > gameTop:
                 paddle_Y_Pos -= paddleSpeed
-        elif mqtt_paddle_direction == "down":
+        elif mqttPaddleDirection == "down":
             if paddle_Y_Pos < gameBottom - currentPaddleHeight:
                 paddle_Y_Pos += paddleSpeed
 
@@ -261,6 +277,7 @@ while runningMainLoop:
         ballRectObj.x += ballSpeedVec[0]
         ballRectObj.y += ballSpeedVec[1]
 
+        #when the ball intersects with the walls & paddle
         currentPaddleRect = pygame.Rect(paddle_X_Pos, paddle_Y_Pos, paddleWidth, currentPaddleHeight)
         if ballRectObj.colliderect(currentPaddleRect) and ballSpeedVec[0] > 0:
             yIntersect = (currentPaddleRect.centery) - ballRectObj.centery
@@ -279,6 +296,7 @@ while runningMainLoop:
         if ballRectObj.right >= gameRight:
             currentGameState = "turnOver"
 
+        #draw everything
         screen.fill(GREY)
         pygame.draw.rect(screen, BLACK, (game_X_Offset, game_Y_Offset, gameWidth, gameHeight))
         info_Y_pos = infoPanel_Y_Start
@@ -291,15 +309,28 @@ while runningMainLoop:
         
         info_Y_pos += 60; drawTextOnScreen("Beste Scores:", headerFont, BLACK, screen, infoPanel_X_Start, info_Y_pos, False)
         info_Y_pos += 45
-        if not highScoresData:
+        
+        has_any_scores_overall = any(highScoresData.get(diffKey) for diffKey in difficulties.keys())
+
+        if not has_any_scores_overall:
             drawTextOnScreen("Nog geen scores!", smallFont, BLACK, screen, infoPanel_X_Start + 10, info_Y_pos, False)
+            info_Y_pos += 25 
         else:
-            for diffHsKey in sorted(difficulties.keys()):
-                hsText = f"{diffHsKey}: "
-                if diffHsKey in highScoresData: hsText += f"{highScoresData[diffHsKey][0]} - {highScoresData[diffHsKey][1]:.2f}s"
-                else: hsText += "Nog geen score"
-                drawTextOnScreen(hsText, smallFont, BLACK, screen, infoPanel_X_Start + 10, info_Y_pos, False)
-                info_Y_pos += 25
+            for diffKey_ordered in difficulties.keys():
+                drawTextOnScreen(f"{diffKey_ordered}:", smallFont, BLACK, screen, infoPanel_X_Start + 10, info_Y_pos, False)
+                info_Y_pos += 20 
+
+                scores_list_for_diff = highScoresData.get(diffKey_ordered, [])
+                if scores_list_for_diff:
+                    for rank, (name, score_val) in enumerate(scores_list_for_diff):
+                        display_text = f"  {rank + 1}. {name} - {score_val:.2f}s"
+                        drawTextOnScreen(display_text, smallFont, BLACK, screen, infoPanel_X_Start + 15, info_Y_pos, False)
+                        info_Y_pos += 20
+                else:
+                    drawTextOnScreen("  Nog geen score", smallFont, BLACK, screen, infoPanel_X_Start + 15, info_Y_pos, False)
+                    info_Y_pos += 20
+                
+                info_Y_pos += 5 
 
         pygame.draw.rect(screen, RED, currentPaddleRect)
         pygame.draw.circle(screen, GREEN, ballRectObj.center, ballRadius)
@@ -355,6 +386,7 @@ while runningMainLoop:
             if not runningMainLoop:
                 break
 
+            #print spel voorbij scherm
             screen.fill(BLACK)
             drawTextOnScreen("SPEL VOORBIJ!", titleFont, YELLOW, screen, screenWidth/2, screenHeight/3, True, True)
             drawTextOnScreen(f"{playerNameStr} ({difficultyNameStr})", gameFont, LIGHT_BLUE, screen, screenWidth/2, screenHeight/3 + 60, True, True)
